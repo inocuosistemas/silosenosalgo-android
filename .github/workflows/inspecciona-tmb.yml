@@ -1,0 +1,41 @@
+# De un solo uso: qué trae el horario oficial de TMB (GTFS) del metro, para
+# preparar su generador. Solo escribe datos públicos (la clave la tapa GitHub).
+name: Inspecciona TMB
+on:
+  workflow_dispatch:
+jobs:
+  mira:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baja y cuenta
+        env:
+          TMB_APP_ID: ${{ secrets.TMB_APP_ID }}
+          TMB_APP_KEY: ${{ secrets.TMB_APP_KEY }}
+        run: |
+          curl -sS -o gtfs.zip -w 'HTTP %{http_code} %{size_download} bytes\n' "https://api.tmb.cat/v1/static/datasets/gtfs.zip?app_id=$TMB_APP_ID&app_key=$TMB_APP_KEY"
+          unzip -l gtfs.zip || head -c 300 gtfs.zip
+          unzip -o -q gtfs.zip -d g
+          python3 - <<'PY'
+          import csv, collections
+          def lee(n): return [{k.strip(): (v or '').strip() for k, v in f.items()} for f in csv.DictReader(open(f'g/{n}', encoding='utf-8-sig'))]
+          routes = lee('routes.txt')
+          print('route_type:', collections.Counter(r['route_type'] for r in routes))
+          metro = [r for r in routes if r['route_type'] == '1']
+          print('metro:', [(r['route_id'], r['route_short_name'], r.get('route_color')) for r in metro])
+          ids = {r['route_id'] for r in metro}
+          trips = [t for t in lee('trips.txt') if t['route_id'] in ids]
+          print('viajes de metro:', len(trips), 'con shape:', sum(1 for t in trips if t.get('shape_id')))
+          tid = {t['trip_id'] for t in trips}
+          n = 0
+          for f in csv.DictReader(open('g/stop_times.txt', encoding='utf-8-sig')):
+              if f['trip_id'].strip() in tid: n += 1
+          print('pasos de metro:', n)
+          import os
+          print('frequencies:', os.path.exists('g/frequencies.txt'))
+          stops = lee('stops.txt')
+          print('paradas (cabecera):', list(stops[0].keys()))
+          print('ejemplo de parada de metro:', [s for s in stops if s.get('location_type') == '1'][:2])
+          PY
+          curl -sS -w '\nHTTP %{http_code}\n' "https://api.tmb.cat/v1/transit/linies/metro?app_id=$TMB_APP_ID&app_key=$TMB_APP_KEY" | head -c 600
+          echo
+          curl -sS -w '\nHTTP %{http_code}\n' "https://api.tmb.cat/v1/imetro/estacions?app_id=$TMB_APP_ID&app_key=$TMB_APP_KEY" | head -c 400
