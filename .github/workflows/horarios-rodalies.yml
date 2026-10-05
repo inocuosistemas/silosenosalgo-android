@@ -1,7 +1,9 @@
-# Cada lunes, el horario previsto de Rodalies de Catalunya a partir del
-# calendario oficial de Renfe (datos abiertos, data.renfe.com). Lo lee la app
-# cuando el servicio de horarios de Rodalies no contesta.
-name: Horarios de Rodalies
+# Cada lunes, los horarios que no se consultan en vivo, renovados para las
+# próximas tres semanas: el previsto de Rodalies (calendario oficial de Renfe),
+# el bus del AMB y FGC (sus datos abiertos). Los lee el servidor de la app
+# (ver functions/lib/datosRenovados.ts y rodaliesGuardado.ts): sin renovarlos,
+# a las tres semanas se quedaban sin salidas.
+name: Horarios de transporte
 on:
   schedule:
     - cron: '0 3 * * 1'
@@ -16,14 +18,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      # Cada uno por su lado: si una fuente falla, las demás se guardan igual.
       - name: Genera datos/rodalies.json
+        continue-on-error: true
         env:
           SALIDA: datos/rodalies.json
         run: python3 scripts/genera-rodalies.py
+      - name: Genera datos/bus-amb.json
+        continue-on-error: true
+        env:
+          SALIDA: datos/bus-amb.json
+        run: python3 scripts/genera-bus-amb.py
+      - name: Genera datos/fgc.json
+        continue-on-error: true
+        env:
+          SALIDA: datos/fgc.json
+        run: python3 scripts/genera-fgc.py
       - name: Guarda si ha cambiado
         run: |
           git config user.name "horarios-rodalies"
           git config user.email "horarios-rodalies@users.noreply.github.com"
-          git add datos/rodalies.json
-          git diff --cached --quiet || git commit -m "Horario previsto de Rodalies, $(date -u +%F)"
+          git add datos/*.json
+          git diff --cached --quiet || git commit -m "Horarios de transporte, $(date -u +%F)"
           git push
