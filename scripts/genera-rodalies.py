@@ -150,6 +150,8 @@ def main():
 
     salida = {
         'generado': hoy.isoformat(),
+        # Cuándo se generó, con hora (UTC): la web dice «actualizado el 5/10 a las 03:12».
+        'generadoEn': datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
         'desde': dias[0].isoformat(),
         'estaciones': lista_est,
         'lineas': lista_lin,
