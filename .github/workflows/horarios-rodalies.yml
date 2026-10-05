@@ -1,0 +1,29 @@
+# Cada lunes, el horario previsto de Rodalies de Catalunya a partir del
+# calendario oficial de Renfe (datos abiertos, data.renfe.com). Lo lee la app
+# cuando el servicio de horarios de Rodalies no contesta.
+name: Horarios de Rodalies
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  genera:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Genera datos/rodalies.json
+        env:
+          SALIDA: datos/rodalies.json
+        run: python3 scripts/genera-rodalies.py
+      - name: Guarda si ha cambiado
+        run: |
+          git config user.name "horarios-rodalies"
+          git config user.email "horarios-rodalies@users.noreply.github.com"
+          git add datos/rodalies.json
+          git diff --cached --quiet || git commit -m "Horario previsto de Rodalies, $(date -u +%F)"
+          git push

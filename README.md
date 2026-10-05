@@ -9,3 +9,10 @@ Al abrir el enlace desde el móvil, Android pide permiso para instalar apps de f
 También está en Google Play (pruebas) para quien esté apuntado.
 
 Aquí solo están las versiones para instalar; el código no está en este repositorio.
+
+## Horario previsto de Rodalies
+
+`datos/rodalies.json` se genera cada lunes (`.github/workflows/horarios-rodalies.yml`)
+con `scripts/genera-rodalies.py` a partir del calendario oficial de Renfe
+(datos abiertos, data.renfe.com). La app lo usa cuando el servicio de horarios
+de Rodalies no contesta.
