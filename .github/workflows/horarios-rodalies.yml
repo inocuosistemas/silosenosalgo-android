@@ -1,6 +1,7 @@
 # Cada lunes, los horarios que no se consultan en vivo, renovados para las
 # próximas tres semanas: el previsto de Rodalies (calendario oficial de Renfe),
-# el bus del AMB y FGC (sus datos abiertos). Los lee el servidor de la app
+# el bus del AMB y FGC (sus datos abiertos) y el metro de TMB (con su clave,
+# en los secretos del repositorio). Los lee el servidor de la app
 # (ver functions/lib/datosRenovados.ts y rodaliesGuardado.ts): sin renovarlos,
 # a las tres semanas se quedaban sin salidas.
 name: Horarios de transporte
@@ -34,6 +35,13 @@ jobs:
         env:
           SALIDA: datos/fgc.json
         run: python3 scripts/genera-fgc.py
+      - name: Genera datos/tmb.json
+        continue-on-error: true
+        env:
+          SALIDA: datos/tmb.json
+          TMB_APP_ID: ${{ secrets.TMB_APP_ID }}
+          TMB_APP_KEY: ${{ secrets.TMB_APP_KEY }}
+        run: python3 scripts/genera-tmb.py
       - name: Guarda si ha cambiado
         run: |
           git config user.name "horarios-rodalies"
