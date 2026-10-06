@@ -25,6 +25,21 @@ def segundos(h):
     return p[0] * 3600 + p[1] * 60 + (p[2] if len(p) > 2 else 0)
 
 
+def codifica(puntos):
+    """La polilínea de Google (precisión 5), como en genera-trazados.py."""
+    out, plat, plon = [], 0, 0
+    for lat, lon in puntos:
+        ilat, ilon = round(lat * 1e5), round(lon * 1e5)
+        for d in (ilat - plat, ilon - plon):
+            v = ~(d << 1) if d < 0 else d << 1
+            while v >= 0x20:
+                out.append(chr((0x20 | (v & 0x1f)) + 63))
+                v >>= 5
+            out.append(chr(v + 63))
+        plat, plon = ilat, ilon
+    return ''.join(out)
+
+
 def main():
     if len(sys.argv) > 1:
         z = zipfile.ZipFile(sys.argv[1])
@@ -108,6 +123,19 @@ def main():
         salida_viajes.append([idx_lin[t['route_id']], idx_serv[t['service_id']], t.get('trip_headsign', ''),
                               inicio, idx_pat[patron], ''])
 
+    # Los trazados de cada línea (para el mapa del trayecto en directo), aquí
+    # y no en trazados.json: solo esta tarea tiene la clave de TMB.
+    forma_linea = {t['shape_id']: lineas[t['route_id']]['route_short_name'] for t in viajes.values() if t.get('shape_id')}
+    puntos = collections.defaultdict(list)
+    for p in lee('shapes.txt'):
+        if p['shape_id'] in forma_linea:
+            puntos[p['shape_id']].append((int(p['shape_pt_sequence']), float(p['shape_pt_lat']), float(p['shape_pt_lon'])))
+    trazados = collections.defaultdict(list)
+    for sid, ps in puntos.items():
+        c = codifica([(a, b) for _, a, b in sorted(ps)])
+        if c not in trazados[forma_linea[sid]]:
+            trazados[forma_linea[sid]].append(c)
+
     por_id = {e['id']: e for e in lista_est}
     for est, i in idx_est.items():
         lista_est[i]['lineas'] = sorted(lineas_de[est])
@@ -120,6 +148,8 @@ def main():
         'servicios': lista_serv,
         'patrones': lista_pat,
         'viajes': salida_viajes,
+        # Por línea, sus trazados (polilínea de Google).
+        'trazados': dict(sorted(trazados.items())),
     }
     with open(SALIDA, 'w', encoding='utf-8') as f:
         json.dump(salida, f, ensure_ascii=False, separators=(',', ':'))
