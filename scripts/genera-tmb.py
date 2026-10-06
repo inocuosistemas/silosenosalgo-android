@@ -136,6 +136,29 @@ def main():
         if c not in trazados[forma_linea[sid]]:
             trazados[forma_linea[sid]].append(c)
 
+    # El código de cada estación en el tiempo real (iMetro) es POR LÍNEA
+    # (Diagonal: 328 en la L3, 528 en la L5): de la lista de estaciones de cada
+    # línea de TMB, a la estación más cercana de las nuestras.
+    ident, clave = os.environ.get('TMB_APP_ID'), os.environ.get('TMB_APP_KEY')
+    if ident and clave:
+        for rid, l in lineas.items():
+            num = rid.split('.')[1] if rid.count('.') >= 2 else None
+            if not num:
+                continue
+            try:
+                url = f'https://api.tmb.cat/v1/transit/linies/metro/{num}/estacions?app_id={ident}&app_key={clave}'
+                fs = json.load(urllib.request.urlopen(url, timeout=60)).get('features', [])
+            except Exception as e:
+                print(f'Sin códigos de la línea {l["route_short_name"]}: {type(e).__name__}', file=sys.stderr)
+                continue
+            for f in fs:
+                pr, (lon, lat) = f.get('properties', {}), f.get('geometry', {}).get('coordinates', [None, None])[:2]
+                if lat is None or 'CODI_ESTACIO' not in pr:
+                    continue
+                cerca = min(lista_est, key=lambda e: (e['lat'] - lat) ** 2 + ((e['lon'] - lon) * 0.75) ** 2)
+                if ((cerca['lat'] - lat) ** 2 + ((cerca['lon'] - lon) * 0.75) ** 2) ** 0.5 * 111000 < 400:
+                    cerca.setdefault('codis', {})[l['route_short_name']] = int(pr['CODI_ESTACIO'])
+
     por_id = {e['id']: e for e in lista_est}
     for est, i in idx_est.items():
         lista_est[i]['lineas'] = sorted(lineas_de[est])
