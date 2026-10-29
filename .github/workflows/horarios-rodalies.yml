@@ -1,7 +1,8 @@
 # Cada lunes, los horarios que no se consultan en vivo, renovados para las
 # próximas tres semanas: el previsto de Rodalies (calendario oficial de Renfe),
-# el bus del AMB y FGC (sus datos abiertos) y el metro de TMB (con su clave,
-# en los secretos del repositorio). Los lee el servidor de la app
+# el bus del AMB y FGC (sus datos abiertos), los exprés de Sagalés (del GTFS
+# abierto de los interurbanos de la Generalitat) y el metro de TMB (con su
+# clave, en los secretos del repositorio). Los lee el servidor de la app
 # (ver functions/lib/datosRenovados.ts y rodaliesGuardado.ts): sin renovarlos,
 # a las tres semanas se quedaban sin salidas.
 name: Horarios de transporte
@@ -35,6 +36,11 @@ jobs:
         env:
           SALIDA: datos/fgc.json
         run: python3 scripts/genera-fgc.py
+      - name: Genera datos/bus-expres.json
+        continue-on-error: true
+        env:
+          SALIDA: datos/bus-expres.json
+        run: python3 scripts/genera-bus-expres.py
       - name: Genera datos/tmb.json
         continue-on-error: true
         env:
