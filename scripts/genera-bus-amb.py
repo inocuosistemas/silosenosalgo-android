@@ -84,7 +84,9 @@ def main():
         return bool(c) and c[nombres_dia[d.weekday()]] == '1' and c['start_date'] <= k <= c['end_date']
 
     # Lo que se guarda: paradas usadas, líneas, servicios con sus días, y
-    # viajes como [línea, servicio, destino, [[parada, segundos], …]].
+    # viajes como [línea, servicio, destino, [[parada, segundos], …], trip_id].
+    # El trip_id, para su hora de paso de ahora (el tiempo real del AMB, ver
+    # functions/lib/ambEnVivo.ts): las versiones de antes de la web lo ignoran.
     usadas, lista_paradas, idx_parada = set(), [], {}
     lista_lineas, idx_linea = [], {}
     lista_servicios, idx_servicio = [], {}
@@ -114,7 +116,7 @@ def main():
             idx_servicio[t['service_id']] = len(lista_servicios)
             lista_servicios.append(dias_activo)
         salida_viajes.append([idx_linea[t['route_id']], idx_servicio[t['service_id']], t.get('trip_headsign', ''),
-                              [[idx_parada[s], seg] for _, s, seg in v]])
+                              [[idx_parada[s], seg] for _, s, seg in v], tid])
 
     salida = {
         'generado': hoy.isoformat(),
@@ -132,6 +134,19 @@ def main():
         json.dump(salida, f, ensure_ascii=False, separators=(',', ':'))
     print(f"{SALIDA}: {len(lista_lineas)} líneas ({', '.join(sorted(l['nombre'] for l in lista_lineas))}), "
           f"{len(lista_paradas)} paradas, {len(salida_viajes)} viajes")
+
+    # Y del mismo zip, la red entera para el tiempo real del AMB, junto a este
+    # fichero (ver genera-amb-red.py): así la tarea semanal la renueva sin otro
+    # paso. Si falla, el horario ya está guardado.
+    try:
+        import importlib.util
+        ruta = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'genera-amb-red.py')
+        spec = importlib.util.spec_from_file_location('genera_amb_red', ruta)
+        red = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(red)
+        red.genera(z, os.path.join(os.path.dirname(SALIDA) or '.', 'amb-red.json'))
+    except Exception as e:  # noqa: BLE001
+        print(f'amb-red.json: no se ha podido generar ({e})', file=sys.stderr)
 
 
 if __name__ == '__main__':
